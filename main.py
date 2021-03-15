@@ -1,6 +1,5 @@
 import sys
 import boto3
-import pprint
 
 
 def consumer():
@@ -17,12 +16,27 @@ def consumer():
         if resources.upper() == "DYNAMO":
             create_dynamo(get_all_bucket_contents(bucket))
             delete_all_bucket_contents(bucket)
+        if resources.upper() == "S3":
+            if len(sys.argv) < 5:
+                print('Invalid argument list. s3 resource requires two buckets use python main.py <storage strategy> '
+                      's3 <bucket name> <bucket 2 name>')
+                exit(-1)
+            bucket2 = sys.argv[4]
+            create_s3(s3, bucket, bucket2)
+
+
+def create_s3(s3, bucket, bucket2):
+    client = boto3.client('s3')
+    contents = get_all_bucket_contents(bucket)
+    for content in contents:
+        client.put_object(Body=content['body'], Bucket=bucket2, Key=content['key'])
+        print('Created item', content['key'], 'successfully')
 
 
 def create_dynamo(contents, dynamodb=None):
     if not dynamodb:
         dynamodb = boto3.resource('dynamodb')
-        table = dynamodb.Table('widgets')
+    table = dynamodb.Table('widgets')
     for content in contents:
         response = table.put_item(
             Item={
@@ -47,6 +61,7 @@ def get_all_bucket_contents(bucket):
 
 def delete_all_bucket_contents(bucket):
     bucket.objects.all().delete()
+
 
 if __name__ == '__main__':
     consumer()
