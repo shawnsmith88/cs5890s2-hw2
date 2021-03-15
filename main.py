@@ -2,6 +2,18 @@ import sys
 import boto3
 from dynamo import Dynamo
 from s3 import S3
+import time
+
+MAX = 5
+
+
+def main():
+    x = 0
+    while x < MAX:
+        print("Consuming data...")
+        consumer()
+        x += 1
+        time.sleep(5)
 
 
 def consumer():
@@ -18,33 +30,19 @@ def consumer():
 
     if strategy.upper() == "CREATE":
         if resources.upper() == "DYNAMO":
-            dynamo_service.create(get_all_bucket_contents(bucket))
-            delete_all_bucket_contents(bucket)
+            contents = s3_service.get_all_bucket_contents(bucket)
+            print(dynamo_service.create(contents))
+            s3_service.delete_all_bucket_contents(bucket, contents)
         if resources.upper() == "S3":
             if len(sys.argv) < 5:
                 print('Invalid argument list. s3 resource requires two buckets use python main.py <storage strategy> '
                       's3 <bucket name> <bucket 2 name>')
                 exit(-1)
             bucket2 = sys.argv[4]
-            s3_service.create(s3, bucket, bucket2)
-            delete_all_bucket_contents(bucket)
-
-
-def get_all_bucket_contents(bucket):
-    contents = []
-    for obj in bucket.objects.all():
-        dictionary = {
-            'key': obj.key,
-            'body': obj.get()['Body'].read()
-        }
-        contents.append(dictionary)
-    return contents
-
-
-def delete_all_bucket_contents(bucket):
-    bucket.objects.all().delete()
+            contents = s3_service.get_all_bucket_contents(bucket)
+            print(s3_service.create(contents, bucket, bucket2))
+            s3_service.delete_all_bucket_contents(bucket, contents)
 
 
 if __name__ == '__main__':
-    consumer()
-
+    main()
