@@ -1,5 +1,7 @@
 import sys
 import boto3
+from dynamo import Dynamo
+from s3 import S3
 
 
 def consumer():
@@ -11,10 +13,12 @@ def consumer():
     bucket_name = sys.argv[3]
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
+    dynamo_service = Dynamo()
+    s3_service = S3()
 
     if strategy.upper() == "CREATE":
         if resources.upper() == "DYNAMO":
-            create_dynamo(get_all_bucket_contents(bucket))
+            dynamo_service.create(get_all_bucket_contents(bucket))
             delete_all_bucket_contents(bucket)
         if resources.upper() == "S3":
             if len(sys.argv) < 5:
@@ -22,30 +26,8 @@ def consumer():
                       's3 <bucket name> <bucket 2 name>')
                 exit(-1)
             bucket2 = sys.argv[4]
-            create_s3(s3, bucket, bucket2)
-
-
-def create_s3(s3, bucket, bucket2):
-    client = boto3.client('s3')
-    contents = get_all_bucket_contents(bucket)
-    for content in contents:
-        client.put_object(Body=content['body'], Bucket=bucket2, Key=content['key'])
-        print('Created item', content['key'], 'successfully')
-
-
-def create_dynamo(contents, dynamodb=None):
-    if not dynamodb:
-        dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('widgets')
-    for content in contents:
-        response = table.put_item(
-            Item={
-                'widget_id': content['key'],
-                'contents': content['body'],
-                'owner': 'boto3'
-            }
-        )
-        print('Created item', content['key'], 'successfully')
+            s3_service.create(s3, bucket, bucket2)
+            delete_all_bucket_contents(bucket)
 
 
 def get_all_bucket_contents(bucket):
